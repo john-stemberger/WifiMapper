@@ -21,6 +21,9 @@ import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -126,8 +129,23 @@ public class MainActivity
         }
         for (ScanResult r : results)
         {
-            Log.d(TAG, "" + r);
+            saveResult(r);
         }
+    }
+
+    private void saveResult(ScanResult result)
+    {
+        textStatus.setText("" + result);
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        database.setPersistenceEnabled(true);
+
+        DatabaseReference row = database.getReference("AccessPoints");
+        row.child(result.BSSID).child("SID").setValue(result.SSID);
+        row.child(result.BSSID).child("capabilities").setValue(result.capabilities);
+        row.child(result.BSSID).child("level").setValue(result.level);
+        row.child(result.BSSID).child("frequency").setValue(result.frequency);
+        row.child(result.BSSID).child("timestamp").setValue(result.timestamp);
+        row.child(result.BSSID).child("toString").setValue("" + result);
     }
 
     /**
