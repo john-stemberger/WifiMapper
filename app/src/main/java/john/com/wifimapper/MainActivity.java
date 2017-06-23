@@ -13,7 +13,6 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
@@ -48,19 +47,24 @@ public class MainActivity
     ArrayList<HashMap<String, String>> arraylist = new ArrayList<HashMap<String, String>>();
     SimpleAdapter adapter;
 
+    FirebaseDatabase database;
+
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+//        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+//        setSupportActionBar(toolbar);
 
 
         textStatus = (TextView) findViewById(R.id.textStatus);
         buttonScan = (Button) findViewById(R.id.buttonScan);
         buttonScan.setOnClickListener(this);
-        lv = (ListView) findViewById(R.id.list);
+//        lv = (ListView) findViewById(R.id.list);
+
+        database = FirebaseDatabase.getInstance();
+        //database.setPersistenceEnabled(true);
 
         wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (wifi.isWifiEnabled() == false)
@@ -93,20 +97,25 @@ public class MainActivity
     {
         List<String> permissionsList = new ArrayList<>();
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
             permissionsList.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_WIFI_STATE) != PackageManager.PERMISSION_GRANTED)
+        {
             permissionsList.add(Manifest.permission.ACCESS_WIFI_STATE);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CHANGE_WIFI_STATE) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CHANGE_WIFI_STATE) != PackageManager.PERMISSION_GRANTED)
+        {
             permissionsList.add(Manifest.permission.CHANGE_WIFI_STATE);
         }
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
             permissionsList.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         }
 
-        if (permissionsList.size() > 0) {
+        if (permissionsList.size() > 0)
+        {
             ActivityCompat.requestPermissions(this, permissionsList.toArray(new String[permissionsList.size()]),
                     PERMISSION_REQUEST_CODE);
         }
@@ -135,17 +144,15 @@ public class MainActivity
 
     private void saveResult(ScanResult result)
     {
-        textStatus.setText("" + result);
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        database.setPersistenceEnabled(true);
-
-        DatabaseReference row = database.getReference("AccessPoints");
-        row.child(result.BSSID).child("SID").setValue(result.SSID);
-        row.child(result.BSSID).child("capabilities").setValue(result.capabilities);
-        row.child(result.BSSID).child("level").setValue(result.level);
-        row.child(result.BSSID).child("frequency").setValue(result.frequency);
-        row.child(result.BSSID).child("timestamp").setValue(result.timestamp);
-        row.child(result.BSSID).child("toString").setValue("" + result);
+        textStatus.setText(textStatus.getText() + "\n" + result.SSID);
+        DatabaseReference db = database.getReference();
+        DatabaseReference row = db.child("accessPoints").child(result.BSSID);
+        row.child("SID").setValue(result.SSID);
+        row.child("capabilities").setValue(result.capabilities);
+        row.child("level").setValue(result.level);
+        row.child("frequency").setValue(result.frequency);
+        row.child("timestamp").setValue(result.timestamp);
+        row.child("toString").setValue("" + result);
     }
 
     /**
@@ -155,6 +162,7 @@ public class MainActivity
     {
         arraylist.clear();
         wifi.startScan();
+        textStatus.setText("");
 //        Toast.makeText(this, "Scanning...." + size, Toast.LENGTH_SHORT).show();
 //        try
 //        {
