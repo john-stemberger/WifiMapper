@@ -13,6 +13,8 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
@@ -64,7 +66,7 @@ public class MainActivity
 //        lv = (ListView) findViewById(R.id.list);
 
         database = FirebaseDatabase.getInstance();
-        //database.setPersistenceEnabled(true);
+        database.setPersistenceEnabled(true);
 
         wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (wifi.isWifiEnabled() == false)
@@ -142,17 +144,34 @@ public class MainActivity
         }
     }
 
+    private String cleanNameForDb(String sid) {
+        sid = sid.replaceAll("\\.", "_");
+        sid = sid.replaceAll("\\$", "_");
+        sid = sid.replaceAll("#", "_");
+        sid = sid.replaceAll("\\[", "_");
+        sid = sid.replaceAll("]", "_");
+        return sid;
+
+    }
+
     private void saveResult(ScanResult result)
     {
+        if(TextUtils.isEmpty(result.SSID)) {
+            return;
+        }
+        String sid = result.SSID;
+        sid = cleanNameForDb(sid);
         textStatus.setText(textStatus.getText() + "\n" + result.SSID);
         DatabaseReference db = database.getReference();
-        DatabaseReference row = db.child("accessPoints").child(result.BSSID);
-        row.child("SID").setValue(result.SSID);
-        row.child("capabilities").setValue(result.capabilities);
-        row.child("level").setValue(result.level);
-        row.child("frequency").setValue(result.frequency);
-        row.child("timestamp").setValue(result.timestamp);
-        row.child("toString").setValue("" + result);
+        DatabaseReference row = db.child("networks").child(sid);
+        DatabaseReference accessPoint = row.child(result.BSSID);
+        accessPoint.child("BSSID").setValue(result.BSSID);
+        accessPoint.child("SID").setValue(result.SSID);
+        accessPoint.child("capabilities").setValue(result.capabilities);
+        accessPoint.child("level").setValue(result.level);
+        accessPoint.child("frequency").setValue(result.frequency);
+        accessPoint.child("timestamp").setValue(result.timestamp);
+        accessPoint.child("toString").setValue("" + result);
     }
 
     /**
