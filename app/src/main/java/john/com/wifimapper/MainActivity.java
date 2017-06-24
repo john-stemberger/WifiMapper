@@ -96,26 +96,30 @@ public class MainActivity
 
     private void startWifiNetworkMonitoring()
     {
-        scanReceiver = new BroadcastReceiver()
-        {
-            @Override
-            public void onReceive(Context c, Intent intent)
-            {
-                onResults(c, intent);
-            }
-        };
-        Log.e("JOHN", "startWifiNetworkMonitoring");
-        registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-        wifi.startScan();
+        Intent intent = new Intent(this, WifiMapper.class);
+        startService(intent);
+//        scanReceiver = new BroadcastReceiver()
+//        {
+//            @Override
+//            public void onReceive(Context c, Intent intent)
+//            {
+//                onResults(c, intent);
+//            }
+//        };
+//        Log.e("JOHN", "startWifiNetworkMonitoring");
+//        registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+//        wifi.startScan();
     }
 
     private void stopWifiNetworkMonitoring()
     {
-        if (scanReceiver != null)
-        {
-            unregisterReceiver(scanReceiver);
-            scanReceiver = null;
-        }
+        Intent intent = new Intent(this, WifiMapper.class);
+        stopService(intent);
+//        if (scanReceiver != null)
+//        {
+//            unregisterReceiver(scanReceiver);
+//            scanReceiver = null;
+//        }
     }
 
     @Override

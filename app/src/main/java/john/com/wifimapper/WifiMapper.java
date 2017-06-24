@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.IBinder;
+import android.support.annotation.IntDef;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -16,7 +17,7 @@ import java.util.List;
 public class WifiMapper
         extends Service
 {
-    private static final String TAG = "JOHN";//WifiMapper.class.getSimpleName();
+    private static final String TAG = WifiMapper.class.getSimpleName();
 
     WifiManager wifiManager;
     BroadcastReceiver scanReceiver;
@@ -57,6 +58,15 @@ public class WifiMapper
         registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
     }
 
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId)
+    {
+        Log.d(TAG, "onStartCommand");
+        wifiManager.startScan();
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+
     private void onScanResult(Context context, Intent intent)
     {
         Log.d(TAG, "onCreate");
@@ -82,6 +92,7 @@ public class WifiMapper
     @Override
     public void onDestroy()
     {
+        Log.d(TAG, "onDestroy");
         unregisterReceiver(scanReceiver);
         scanReceiver = null;
         wifiManager = null;
