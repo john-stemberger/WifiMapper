@@ -44,11 +44,6 @@ public class MainActivity
     List<ScanResult> results;
     BroadcastReceiver scanReceiver;
 
-
-    String ITEM_KEY = "key";
-    ArrayList<HashMap<String, String>> arraylist = new ArrayList<HashMap<String, String>>();
-    SimpleAdapter adapter;
-
     FirebaseDatabase database;
 
     @Override
@@ -56,14 +51,10 @@ public class MainActivity
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-//        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-//        setSupportActionBar(toolbar);
-
 
         textStatus = (TextView) findViewById(R.id.textStatus);
         buttonScan = (Button) findViewById(R.id.buttonScan);
         buttonScan.setOnClickListener(this);
-//        lv = (ListView) findViewById(R.id.list);
 
         database = FirebaseDatabase.getInstance();
         database.setPersistenceEnabled(true);
@@ -74,8 +65,6 @@ public class MainActivity
             Toast.makeText(getApplicationContext(), "wifi is disabled..making it enabled", Toast.LENGTH_LONG).show();
             wifi.setWifiEnabled(true);
         }
-//        this.adapter = new SimpleAdapter(this, arraylist, R.layout.row, new String[]{ITEM_KEY}, new int[]{R.id.list_value});
-//        lv.setAdapter(this.adapter);
 
         scanReceiver = new BroadcastReceiver()
         {
@@ -179,25 +168,8 @@ public class MainActivity
      **/
     public void onClick(View view)
     {
-        arraylist.clear();
         wifi.startScan();
         textStatus.setText("");
-//        Toast.makeText(this, "Scanning...." + size, Toast.LENGTH_SHORT).show();
-//        try
-//        {
-//            size = size - 1;
-//            while (size >= 0)
-//            {
-//                HashMap<String, String> item = new HashMap<String, String>();
-//                item.put(ITEM_KEY, results.get(size).SSID + "  " + results.get(size).capabilities);
-//                arraylist.add(item);
-//                size--;
-////                adapter.notifyDataSetChanged();
-//            }
-//        }
-//        catch (Exception e)
-//        {
-//        }
     }
 
 }
