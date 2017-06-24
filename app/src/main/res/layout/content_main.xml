@@ -17,16 +17,16 @@
         tools:showIn="@layout/activity_main">
 
         <Button
-            android:id="@+id/buttonScan"
+            android:id="@+id/action_start"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="scan"/>
 
-        <TextView
-            android:id="@+id/textStatus"
+        <Button
+            android:id="@+id/action_stop"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            tools:text="status"/>
+            android:text="stop scan"/>
 
 
     </LinearLayout>

@@ -1,5 +1,7 @@
 package john.com.wifimapper;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -18,6 +20,7 @@ public class WifiMapper
         extends Service
 {
     private static final String TAG = WifiMapper.class.getSimpleName();
+    private static final int WIFI_MAPPER_NOTIFICATION_ID = 1;
 
     WifiManager wifiManager;
     BroadcastReceiver scanReceiver;
@@ -62,10 +65,19 @@ public class WifiMapper
     public int onStartCommand(Intent intent, int flags, int startId)
     {
         Log.d(TAG, "onStartCommand");
+
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+        Notification notification = new Notification.Builder(this)
+                .setContentIntent(pendingIntent)
+                .build();
+
+        startForeground(WIFI_MAPPER_NOTIFICATION_ID, notification);
         wifiManager.startScan();
         return super.onStartCommand(intent, flags, startId);
     }
-
 
     private void onScanResult(Context context, Intent intent)
     {
@@ -83,13 +95,6 @@ public class WifiMapper
     }
 
     @Override
-    public IBinder onBind(Intent intent)
-    {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
     public void onDestroy()
     {
         Log.d(TAG, "onDestroy");
@@ -99,4 +104,10 @@ public class WifiMapper
         super.onDestroy();
     }
 
+    @Override
+    public IBinder onBind(Intent intent)
+    {
+        // TODO: Return the communication channel to the service.
+        throw new UnsupportedOperationException("Not yet implemented");
+    }
 }

@@ -1,10 +1,8 @@
 package john.com.wifimapper;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
@@ -15,9 +13,6 @@ import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.firebase.database.DatabaseReference;
@@ -34,12 +29,7 @@ public class MainActivity
     private static final int PERMISSION_REQUEST_CODE = 1;
 
     WifiManager wifi;
-    ListView lv;
-    TextView textStatus;
-    Button buttonScan;
-    int size = 0;
     List<ScanResult> results;
-    BroadcastReceiver scanReceiver = null;
 
     FirebaseDatabase database;
 
@@ -49,9 +39,8 @@ public class MainActivity
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        textStatus = (TextView) findViewById(R.id.textStatus);
-        buttonScan = (Button) findViewById(R.id.buttonScan);
-        buttonScan.setOnClickListener(this);
+        findViewById(R.id.action_start).setOnClickListener(this);
+        findViewById(R.id.action_stop).setOnClickListener(this);
 
         database = FirebaseDatabase.getInstance();
         database.setPersistenceEnabled(true);
@@ -68,11 +57,6 @@ public class MainActivity
     public void onRequestPermissionsResult(int requestCode,
                                            String permissions[], int[] grantResults)
     {
-        Log.e("JOHN", "onRequestPermissionsResult " + permissions);
-        for (String s : permissions)
-        {
-            Log.e("JOHN", "    " + s);
-        }
         switch (requestCode)
         {
             case PERMISSION_REQUEST_CODE:
@@ -98,39 +82,15 @@ public class MainActivity
     {
         Intent intent = new Intent(this, WifiMapper.class);
         startService(intent);
-//        scanReceiver = new BroadcastReceiver()
-//        {
-//            @Override
-//            public void onReceive(Context c, Intent intent)
-//            {
-//                onResults(c, intent);
-//            }
-//        };
-//        Log.e("JOHN", "startWifiNetworkMonitoring");
-//        registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-//        wifi.startScan();
     }
 
     private void stopWifiNetworkMonitoring()
     {
         Intent intent = new Intent(this, WifiMapper.class);
         stopService(intent);
-//        if (scanReceiver != null)
-//        {
-//            unregisterReceiver(scanReceiver);
-//            scanReceiver = null;
-//        }
     }
 
-    @Override
-    protected void onResume()
-    {
-        Log.e("JOHN", "onResume");
-        super.onResume();
-        checkForPermissions();
-    }
-
-    private void checkForPermissions()
+    private void requestPermissions()
     {
         List<String> permissionsList = new ArrayList<>();
 
@@ -155,18 +115,10 @@ public class MainActivity
         {
             ActivityCompat.requestPermissions(this, permissionsList.toArray(new String[permissionsList.size()]),
                     PERMISSION_REQUEST_CODE);
-        }
-        else
+        } else
         {
             startWifiNetworkMonitoring();
         }
-    }
-
-    @Override
-    protected void onPause()
-    {
-        super.onPause();
-        stopWifiNetworkMonitoring();
     }
 
     private void onResults(Context context, Intent intent)
@@ -202,7 +154,6 @@ public class MainActivity
         }
         String sid = result.SSID;
         sid = cleanNameForDb(sid);
-        textStatus.setText(textStatus.getText() + "\n" + result.SSID);
         DatabaseReference db = database.getReference();
         DatabaseReference row = db.child("networks").child(sid);
         DatabaseReference accessPoint = row.child(result.BSSID);
@@ -220,8 +171,15 @@ public class MainActivity
      **/
     public void onClick(View view)
     {
-        wifi.startScan();
-        textStatus.setText("");
+        switch (view.getId())
+        {
+            case R.id.action_start:
+                requestPermissions();
+                break;
+            case R.id.action_stop:
+                stopWifiNetworkMonitoring();
+                break;
+        }
     }
 
 }
