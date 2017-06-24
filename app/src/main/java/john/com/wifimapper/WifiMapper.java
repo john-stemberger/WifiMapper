@@ -55,7 +55,6 @@ public class WifiMapper
             }
         };
         registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
-
     }
 
     private void onScanResult(Context context, Intent intent)

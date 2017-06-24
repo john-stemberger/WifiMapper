@@ -12,13 +12,11 @@ import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +24,6 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public class MainActivity
@@ -42,7 +39,7 @@ public class MainActivity
     Button buttonScan;
     int size = 0;
     List<ScanResult> results;
-    BroadcastReceiver scanReceiver;
+    BroadcastReceiver scanReceiver = null;
 
     FirebaseDatabase database;
 
@@ -65,7 +62,40 @@ public class MainActivity
             Toast.makeText(getApplicationContext(), "wifi is disabled..making it enabled", Toast.LENGTH_LONG).show();
             wifi.setWifiEnabled(true);
         }
+    }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults)
+    {
+        Log.e("JOHN", "onRequestPermissionsResult " + permissions);
+        for (String s : permissions)
+        {
+            Log.e("JOHN", "    " + s);
+        }
+        switch (requestCode)
+        {
+            case PERMISSION_REQUEST_CODE:
+            {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length <= 1)
+                {
+                    return; // canceled by user
+                }
+                for (int i = 0; i < grantResults.length; i++)
+                {
+                    if (grantResults[i] != PackageManager.PERMISSION_GRANTED)
+                    {
+                        return;
+                    }
+                }
+                startWifiNetworkMonitoring();
+            }
+        }
+    }
+
+    private void startWifiNetworkMonitoring()
+    {
         scanReceiver = new BroadcastReceiver()
         {
             @Override
@@ -74,14 +104,17 @@ public class MainActivity
                 onResults(c, intent);
             }
         };
+        Log.e("JOHN", "startWifiNetworkMonitoring");
+        registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
+        wifi.startScan();
     }
 
     @Override
     protected void onResume()
     {
+        Log.e("JOHN", "onResume");
         super.onResume();
         checkForPermissions();
-        registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
     }
 
     private void checkForPermissions()
@@ -110,30 +143,38 @@ public class MainActivity
             ActivityCompat.requestPermissions(this, permissionsList.toArray(new String[permissionsList.size()]),
                     PERMISSION_REQUEST_CODE);
         }
+        else
+        {
+            startWifiNetworkMonitoring();
+        }
     }
 
     @Override
     protected void onPause()
     {
         super.onPause();
-        unregisterReceiver(scanReceiver);
+        if (scanReceiver != null)
+        {
+            unregisterReceiver(scanReceiver);
+        }
     }
 
     private void onResults(Context context, Intent intent)
     {
         results = wifi.getScanResults();
-        size = results.size();
         if (results == null)
         {
             return;
         }
         for (ScanResult r : results)
         {
+            Log.e("JOHN", "onResults " + r);
             saveResult(r);
         }
     }
 
-    private String cleanNameForDb(String sid) {
+    private String cleanNameForDb(String sid)
+    {
         sid = sid.replaceAll("\\.", "_");
         sid = sid.replaceAll("\\$", "_");
         sid = sid.replaceAll("#", "_");
@@ -145,7 +186,8 @@ public class MainActivity
 
     private void saveResult(ScanResult result)
     {
-        if(TextUtils.isEmpty(result.SSID)) {
+        if (TextUtils.isEmpty(result.SSID))
+        {
             return;
         }
         String sid = result.SSID;
