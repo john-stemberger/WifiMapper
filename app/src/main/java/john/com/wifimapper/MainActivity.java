@@ -109,6 +109,15 @@ public class MainActivity
         wifi.startScan();
     }
 
+    private void stopWifiNetworkMonitoring()
+    {
+        if (scanReceiver != null)
+        {
+            unregisterReceiver(scanReceiver);
+            scanReceiver = null;
+        }
+    }
+
     @Override
     protected void onResume()
     {
@@ -153,10 +162,7 @@ public class MainActivity
     protected void onPause()
     {
         super.onPause();
-        if (scanReceiver != null)
-        {
-            unregisterReceiver(scanReceiver);
-        }
+        stopWifiNetworkMonitoring();
     }
 
     private void onResults(Context context, Intent intent)

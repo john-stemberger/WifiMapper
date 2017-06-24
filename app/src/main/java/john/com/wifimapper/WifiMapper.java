@@ -16,7 +16,7 @@ import java.util.List;
 public class WifiMapper
         extends Service
 {
-    private static final String TAG = WifiMapper.class.getSimpleName();
+    private static final String TAG = "JOHN";//WifiMapper.class.getSimpleName();
 
     WifiManager wifiManager;
     BroadcastReceiver scanReceiver;
