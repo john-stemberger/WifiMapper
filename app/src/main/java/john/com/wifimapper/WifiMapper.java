@@ -10,9 +10,14 @@ import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.IBinder;
-import android.support.annotation.IntDef;
+import android.support.annotation.NonNull;
+import android.support.v7.app.NotificationCompat;
+import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.List;
 
@@ -20,10 +25,12 @@ public class WifiMapper
         extends Service
 {
     private static final String TAG = WifiMapper.class.getSimpleName();
-    private static final int WIFI_MAPPER_NOTIFICATION_ID = 1;
+    private static final int WIFI_MAPPER_NOTIFICATION_ID = 101;
 
     WifiManager wifiManager;
     BroadcastReceiver scanReceiver;
+    FirebaseDatabase database;
+
 
     public WifiMapper()
     {
@@ -36,6 +43,7 @@ public class WifiMapper
         super.onCreate();
         initWifiManager();
         initScanReceiver();
+        initFirebase();
     }
 
     private void initWifiManager()
@@ -61,19 +69,27 @@ public class WifiMapper
         registerReceiver(scanReceiver, new IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION));
     }
 
+    private void initFirebase()
+    {
+        database = FirebaseDatabase.getInstance();
+        database.setPersistenceEnabled(true);
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId)
     {
         Log.d(TAG, "onStartCommand");
 
-        Intent notificationIntent = new Intent(this, MainActivity.class);
-
+        Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class);
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
-        Notification notification = new Notification.Builder(this)
+        Notification notification = new NotificationCompat.Builder(this)
+                .setContentTitle("Wifi mapper in progress")
+                .setContentText("Last Broadcast: ")
+                .setSmallIcon(android.R.drawable.ic_menu_add)
                 .setContentIntent(pendingIntent)
                 .build();
-
         startForeground(WIFI_MAPPER_NOTIFICATION_ID, notification);
         wifiManager.startScan();
         return super.onStartCommand(intent, flags, startId);
@@ -90,8 +106,61 @@ public class WifiMapper
         for (ScanResult r : results)
         {
             Log.d(TAG, "network: " + r);
-//            saveResult(r);
+            saveResult(r);
         }
+    }
+
+    private String cleanNameForDb(String sid)
+    {
+        sid = sid.replaceAll("\\.", "_");
+        sid = sid.replaceAll("\\$", "_");
+        sid = sid.replaceAll("#", "_");
+        sid = sid.replaceAll("\\[", "_");
+        sid = sid.replaceAll("]", "_");
+        return sid;
+
+    }
+
+    private boolean isSecure(@NonNull ScanResult network)
+    {
+        String capabilities = network.capabilities;
+        Log.w(TAG, network.SSID + " capabilities : " + capabilities);
+        if (capabilities.toUpperCase().contains("WEP"))
+        {
+            // WEP Network
+            return true;
+        }
+        else if (capabilities.toUpperCase().contains("WPA") ||
+                capabilities.toUpperCase().contains("WPA2"))
+        {
+            // WPA or WPA2 Network
+            return true;
+        }
+        else
+        {
+            // Open Network
+            return false;
+        }
+    }
+
+    private void saveResult(ScanResult result)
+    {
+        if (TextUtils.isEmpty(result.SSID))
+        {
+            return;
+        }
+        String sid = result.SSID;
+        sid = cleanNameForDb(sid);
+        DatabaseReference db = database.getReference();
+        DatabaseReference row = db.child("networks").child(sid);
+        DatabaseReference accessPoint = row.child(result.BSSID);
+        accessPoint.child("BSSID").setValue(result.BSSID);
+        accessPoint.child("SID").setValue(result.SSID);
+        accessPoint.child("capabilities").setValue(result.capabilities);
+        accessPoint.child("level").setValue(result.level);
+        accessPoint.child("frequency").setValue(result.frequency);
+        accessPoint.child("timestamp").setValue(result.timestamp);
+        accessPoint.child("toString").setValue("" + result);
     }
 
     @Override
@@ -101,6 +170,7 @@ public class WifiMapper
         unregisterReceiver(scanReceiver);
         scanReceiver = null;
         wifiManager = null;
+        database = null;
         super.onDestroy();
     }
 
