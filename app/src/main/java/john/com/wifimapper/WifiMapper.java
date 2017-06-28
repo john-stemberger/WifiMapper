@@ -7,15 +7,26 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.NotificationCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
@@ -23,13 +34,20 @@ import java.util.List;
 
 public class WifiMapper
         extends Service
+        implements LocationListener
 {
     private static final String TAG = WifiMapper.class.getSimpleName();
     private static final int WIFI_MAPPER_NOTIFICATION_ID = 101;
+    private static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+    private static final long FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS = UPDATE_INTERVAL_IN_MILLISECONDS / 2;
 
     WifiManager wifiManager;
     BroadcastReceiver scanReceiver;
     FirebaseDatabase database;
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationRequest gpsLocationRequest;
+    private LocationCallback mLocationCallback;
+    private Location mCurrentLocation;
 
 
     public WifiMapper()
@@ -44,6 +62,7 @@ public class WifiMapper
         initWifiManager();
         initScanReceiver();
         initFirebase();
+        initLocationMonitoring();
     }
 
     private void initWifiManager()
@@ -80,6 +99,42 @@ public class WifiMapper
     {
         Log.d(TAG, "onStartCommand");
 
+        setupForegroundNotification();
+        wifiManager.startScan();
+
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    private void initLocationMonitoring()
+    {
+        gpsLocationRequest = new LocationRequest();
+        gpsLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+        gpsLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+        gpsLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        mLocationCallback = new LocationCallback()
+        {
+            @Override
+            public void onLocationResult(LocationResult locationResult)
+            {
+                super.onLocationResult(locationResult);
+                mCurrentLocation = locationResult.getLastLocation();
+                Log.e(TAG, "lastLocation: " + mCurrentLocation);
+            }
+        };
+
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            Log.e(TAG, "unable to get location updates without permission");
+            return;
+        }
+        fusedLocationClient.requestLocationUpdates(gpsLocationRequest, mLocationCallback, Looper.myLooper());
+    }
+
+    private void setupForegroundNotification()
+    {
         Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class);
         notificationIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
@@ -91,8 +146,7 @@ public class WifiMapper
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(WIFI_MAPPER_NOTIFICATION_ID, notification);
-        wifiManager.startScan();
-        return super.onStartCommand(intent, flags, startId);
+
     }
 
     private void onScanResult(Context context, Intent intent)
@@ -105,7 +159,7 @@ public class WifiMapper
         }
         for (ScanResult r : results)
         {
-            Log.d(TAG, "network: " + r);
+            Log.d(TAG, mCurrentLocation + "network: " + r);
             saveResult(r);
         }
     }
@@ -161,6 +215,7 @@ public class WifiMapper
         accessPoint.child("frequency").setValue(result.frequency);
         accessPoint.child("timestamp").setValue(result.timestamp);
         accessPoint.child("toString").setValue("" + result);
+        accessPoint.child("lastLocation").setValue(mCurrentLocation);
     }
 
     @Override
@@ -168,6 +223,10 @@ public class WifiMapper
     {
         Log.d(TAG, "onDestroy");
         unregisterReceiver(scanReceiver);
+        fusedLocationClient.removeLocationUpdates(mLocationCallback);
+        fusedLocationClient = null;
+        mLocationCallback = null;
+        gpsLocationRequest = null;
         scanReceiver = null;
         wifiManager = null;
         database = null;
@@ -180,4 +239,34 @@ public class WifiMapper
         // TODO: Return the communication channel to the service.
         throw new UnsupportedOperationException("Not yet implemented");
     }
+
+    /**
+     * LocationListener
+     */
+
+    @Override
+    public void onLocationChanged(Location location)
+    {
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras)
+    {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider)
+    {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider)
+    {
+
+    }
+
+
 }

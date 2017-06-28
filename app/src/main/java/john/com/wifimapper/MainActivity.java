@@ -28,11 +28,6 @@ public class MainActivity
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final int PERMISSION_REQUEST_CODE = 1;
 
-    WifiManager wifi;
-    List<ScanResult> results;
-
-    FirebaseDatabase database;
-
     @Override
     protected void onCreate(Bundle savedInstanceState)
     {
@@ -41,16 +36,6 @@ public class MainActivity
 
         findViewById(R.id.action_start).setOnClickListener(this);
         findViewById(R.id.action_stop).setOnClickListener(this);
-
-        database = FirebaseDatabase.getInstance();
-        database.setPersistenceEnabled(true);
-
-        wifi = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (wifi.isWifiEnabled() == false)
-        {
-            Toast.makeText(getApplicationContext(), "wifi is disabled..making it enabled", Toast.LENGTH_LONG).show();
-            wifi.setWifiEnabled(true);
-        }
     }
 
     @Override
@@ -119,51 +104,6 @@ public class MainActivity
         {
             startWifiNetworkMonitoring();
         }
-    }
-
-    private void onResults(Context context, Intent intent)
-    {
-        results = wifi.getScanResults();
-        if (results == null)
-        {
-            return;
-        }
-        for (ScanResult r : results)
-        {
-            Log.e("JOHN", "onResults " + r);
-            saveResult(r);
-        }
-    }
-
-    private String cleanNameForDb(String sid)
-    {
-        sid = sid.replaceAll("\\.", "_");
-        sid = sid.replaceAll("\\$", "_");
-        sid = sid.replaceAll("#", "_");
-        sid = sid.replaceAll("\\[", "_");
-        sid = sid.replaceAll("]", "_");
-        return sid;
-
-    }
-
-    private void saveResult(ScanResult result)
-    {
-        if (TextUtils.isEmpty(result.SSID))
-        {
-            return;
-        }
-        String sid = result.SSID;
-        sid = cleanNameForDb(sid);
-        DatabaseReference db = database.getReference();
-        DatabaseReference row = db.child("networks").child(sid);
-        DatabaseReference accessPoint = row.child(result.BSSID);
-        accessPoint.child("BSSID").setValue(result.BSSID);
-        accessPoint.child("SID").setValue(result.SSID);
-        accessPoint.child("capabilities").setValue(result.capabilities);
-        accessPoint.child("level").setValue(result.level);
-        accessPoint.child("frequency").setValue(result.frequency);
-        accessPoint.child("timestamp").setValue(result.timestamp);
-        accessPoint.child("toString").setValue("" + result);
     }
 
     /**
