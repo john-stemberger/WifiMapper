@@ -14,8 +14,8 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.Looper;
 import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.NotificationCompat;
 import android.text.TextUtils;
@@ -25,12 +25,14 @@ import android.widget.Toast;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.List;
+import java.util.UUID;
 
 public class WifiMapper
         extends Service
@@ -107,22 +109,22 @@ public class WifiMapper
 
     private void initLocationMonitoring()
     {
-        gpsLocationRequest = new LocationRequest();
-        gpsLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
-        gpsLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
-        gpsLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+//        gpsLocationRequest = new LocationRequest();
+//        gpsLocationRequest.setInterval(UPDATE_INTERVAL_IN_MILLISECONDS);
+//        gpsLocationRequest.setFastestInterval(FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS);
+//        gpsLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
-        mLocationCallback = new LocationCallback()
-        {
-            @Override
-            public void onLocationResult(LocationResult locationResult)
-            {
-                super.onLocationResult(locationResult);
-                mCurrentLocation = locationResult.getLastLocation();
-                Log.e(TAG, "lastLocation: " + mCurrentLocation);
-            }
-        };
+//        mLocationCallback = new LocationCallback()
+//        {
+//            @Override
+//            public void onLocationResult(LocationResult locationResult)
+//            {
+//                super.onLocationResult(locationResult);
+//                mCurrentLocation = locationResult.getLastLocation();
+//                Log.e(TAG, "lastLocation: " + mCurrentLocation);
+//            }
+//        };
 
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
@@ -130,7 +132,7 @@ public class WifiMapper
             Log.e(TAG, "unable to get location updates without permission");
             return;
         }
-        fusedLocationClient.requestLocationUpdates(gpsLocationRequest, mLocationCallback, Looper.myLooper());
+//        fusedLocationClient.requestLocationUpdates(gpsLocationRequest, mLocationCallback, Looper.myLooper());
     }
 
     private void setupForegroundNotification()
@@ -152,16 +154,44 @@ public class WifiMapper
     private void onScanResult(Context context, Intent intent)
     {
         Log.d(TAG, "onCreate");
-        List<ScanResult> results = wifiManager.getScanResults();
+        final List<ScanResult> results = wifiManager.getScanResults();
         if (results == null)
         {
             return;
         }
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            recordResults(results, null);
+            return;
+        }
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(new OnSuccessListener<Location>()
+                {
+                    @Override
+                    public void onSuccess(Location location)
+                    {
+                        recordResults(results, location);
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener()
+                {
+                    @Override
+                    public void onFailure(@NonNull Exception e)
+                    {
+                        recordResults(results, null);
+                    }
+                });
+    }
+
+    private void recordResults(List<ScanResult> results, @Nullable Location location)
+    {
         for (ScanResult r : results)
         {
-            Log.d(TAG, mCurrentLocation + "network: " + r);
-            saveResult(r);
+//            Log.d(TAG, mCurrentLocation + "network: " + r);
+            saveResult(r, location);
         }
+
     }
 
     private String cleanNameForDb(String sid)
@@ -197,7 +227,7 @@ public class WifiMapper
         }
     }
 
-    private void saveResult(ScanResult result)
+    private void saveResult(ScanResult result, @Nullable Location location)
     {
         if (TextUtils.isEmpty(result.SSID))
         {
@@ -215,7 +245,16 @@ public class WifiMapper
         accessPoint.child("frequency").setValue(result.frequency);
         accessPoint.child("timestamp").setValue(result.timestamp);
         accessPoint.child("toString").setValue("" + result);
-        accessPoint.child("lastLocation").setValue(mCurrentLocation);
+        accessPoint.child("location").setValue(location);
+        accessPoint.child("last_update").setValue(System.currentTimeMillis());
+
+        String uuid = UUID.randomUUID().toString();
+        row = db.child("report");
+        DatabaseReference report = row.child(uuid);
+        report.child("SID").setValue(result.SSID);
+        report.child("BSSID").setValue(result.BSSID);
+        report.child("location").setValue(location);
+        report.child("time").setValue(System.currentTimeMillis());
     }
 
     @Override
