@@ -1,32 +1,38 @@
 package john.com.wifimapper;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.wifi.ScanResult;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.text.TextUtils;
-import android.util.Log;
 import android.view.View;
-import android.widget.Toast;
 
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity
         extends AppCompatActivity
-        implements View.OnClickListener
+        implements View.OnClickListener,
+                   OnMapReadyCallback,
+                   GoogleMap.OnCameraIdleListener
 {
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final int PERMISSION_REQUEST_CODE = 1;
+
+    private GoogleMap mMap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -36,6 +42,10 @@ public class MainActivity
 
         findViewById(R.id.action_start).setOnClickListener(this);
         findViewById(R.id.action_stop).setOnClickListener(this);
+
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
     }
 
     @Override
@@ -67,6 +77,14 @@ public class MainActivity
     {
         Intent intent = new Intent(this, WifiMapper.class);
         startService(intent);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            return;
+        }
+        if (mMap != null)
+        {
+            mMap.setMyLocationEnabled(true);
+        }
     }
 
     private void stopWifiNetworkMonitoring()
@@ -100,7 +118,8 @@ public class MainActivity
         {
             ActivityCompat.requestPermissions(this, permissionsList.toArray(new String[permissionsList.size()]),
                     PERMISSION_REQUEST_CODE);
-        } else
+        }
+        else
         {
             startWifiNetworkMonitoring();
         }
@@ -120,6 +139,55 @@ public class MainActivity
                 stopWifiNetworkMonitoring();
                 break;
         }
+    }
+
+    /**
+     * OnMapReadyCallback
+     */
+    @Override
+    public void onMapReady(GoogleMap googleMap)
+    {
+        mMap = googleMap;
+        mMap.setOnCameraIdleListener(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
+    }
+
+    /**
+     * GoogleMap.OnCameraIdleListener
+     */
+    @Override
+    public void onCameraIdle()
+    {
+        final FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final DatabaseReference ref = database.getReference("networks");
+        ref.addValueEventListener(new ValueEventListener()
+        {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot)
+            {
+                for (DataSnapshot SSID : dataSnapshot.getChildren())
+                {
+                    for (DataSnapshot BSID : SSID.getChildren())
+                    {
+                        DataSnapshot location = BSID.child("location");
+                        LatLng pos = new LatLng((double) location.child("latitude").getValue(),
+                                (double) location.child("longitude").getValue());
+                        mMap.addMarker(new MarkerOptions().position(pos)
+                                .title(SSID.getKey() + "@" + BSID.getKey()));
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError)
+            {
+
+            }
+        });
     }
 
 }
